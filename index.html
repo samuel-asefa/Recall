@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recall</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="main.js" defer></script>
+</head>
+<body>
+    <header>
+        <h1>Recall</h1>
+        <p>Create, study, and manage your equation flashcards</p>
+    </header>
+
+    <div class="app-container">
+        <div class="tabs">
+            <button class="tab active" data-tab="create">Create</button>
+            <button class="tab" data-tab="study">Study</button>
+            <button class="tab" data-tab="manage">Manage</button>
+        </div>
+
+        <div id="create" class="content create-section active">
+            <h2>Create New Flashcard</h2>
+            <form id="flashcard-form" class="flashcard-form">
+                <div class="form-group">
+                    <label for="equation">Equation:</label>
+                    <textarea id="equation" required placeholder="Enter the equation (front of the card)"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="solution">Solution:</label>
+                    <textarea id="solution" required placeholder="Enter the solution or explanation (back of the card)"></textarea>
+                </div>
+                <div class="actions">
+                    <button type="submit" class="btn">Create Flashcard</button>
+                    <button type="reset" class="btn btn-secondary">Clear</button>
+                </div>
+            </form>
+        </div>
+
+        <div id="study" class="content study-section">
+            <h2>Study Flashcards</h2>
+            <div id="study-content">
+                <div class="flashcard-container">
+                    <div class="flashcard" id="current-flashcard">
+                        <div class="flashcard-front" id="flashcard-front">
+                            <p>Click "Start Studying" to begin</p>
+                        </div>
+                        <div class="flashcard-back" id="flashcard-back">
+                            <p>The answer will appear here</p>
+                        </div>
+                    </div>
+                </div>
+
+                <p id="card-counter">Card 0 of 0</p>
+
+                <div class="study-controls">
+                    <button id="prev-btn" class="btn btn-secondary">Previous</button>
+                    <button id="flip-btn" class="btn">Flip Card</button>
+                    <button id="next-btn" class="btn btn-secondary">Next</button>
+                </div>
+
+                <div class="actions" style="margin-top: 20px; justify-content: center;">
+                    <button id="start-study-btn" class="btn">Start Studying</button>
+                    <button id="shuffle-btn" class="btn btn-secondary">Shuffle Cards</button>
+                </div>
+            </div>
+
+            <p id="no-cards-message" class="no-flashcards-message" style="display: none;">
+                You don't have any flashcards yet. Create some to start studying!
+            </p>
+        </div>
+
+        <div id="manage" class="content manage-section">
+            <h2>Manage Flashcards</h2>
+            <ul id="flashcards-list" class="flashcards-list">
+                <!-- Flashcards will be listed here -->
+            </ul>
+            <p id="no-cards-manage-message" class="no-flashcards-message">
+                You don't have any flashcards yet. Create some to manage them here!
+            </p>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Edit Flashcard</h2>
+            <form id="edit-form" class="flashcard-form">
+                <input type="hidden" id="edit-id">
+                <div class="form-group">
+                    <label for="edit-equation">Equation:</label>
+                    <textarea id="edit-equation" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="edit-solution">Solution:</label>
+                    <textarea id="edit-solution" required></textarea>
+                </div>
+                <div class="actions">
+                    <button type="submit" class="btn">Save Changes</button>
+                    <button type="button" id="cancel-edit" class="btn btn-secondary">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+</html>
