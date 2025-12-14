@@ -18,7 +18,7 @@ function init() {
     loadFromStorage();
     loadTheme();
     setupEventListeners();
-    showStudySetsView();
+    showHomePage();
 }
 
 function loadTheme() {
@@ -37,10 +37,7 @@ function toggleTheme() {
 
 function updateThemeIcon() {
     const icon = state.theme === 'light' ? '☀' : '☾';
-    const toggle1 = document.getElementById('theme-toggle');
-    const toggle2 = document.getElementById('theme-toggle-set');
-    if (toggle1) toggle1.textContent = icon;
-    if (toggle2) toggle2.textContent = icon;
+    document.getElementById('theme-toggle').textContent = icon;
 }
 
 function loadFromStorage() {
@@ -168,13 +165,12 @@ function showNotification(message, showUndoButton = true) {
 
 function setupEventListeners() {
     document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
-    document.getElementById('theme-toggle-set').addEventListener('click', toggleTheme);
 
     document.getElementById('set-form').addEventListener('submit', handleCreateSet);
     document.getElementById('close-set-modal').addEventListener('click', closeSetModal);
     document.getElementById('cancel-set').addEventListener('click', closeSetModal);
 
-    document.getElementById('back-to-sets').addEventListener('click', showStudySetsView);
+    document.getElementById('back-to-home').addEventListener('click', showHomePage);
 
     document.getElementById('search-sets').addEventListener('input', renderStudySets);
 
@@ -227,23 +223,25 @@ function setupEventListeners() {
     });
 }
 
-function showStudySetsView() {
-    document.getElementById('app-view').classList.remove('hidden');
-    document.getElementById('set-view').classList.remove('active');
+function showHomePage() {
+    document.getElementById('home-page').classList.add('active');
+    document.getElementById('set-page').classList.remove('active');
+    document.getElementById('back-to-home').style.display = 'none';
     state.currentSetId = null;
     renderStudySets();
     updateGlobalStats();
 }
 
-function showSetView(setId) {
+function showSetPage(setId) {
     state.currentSetId = setId;
     const studySet = state.studySets.find(s => s.id === setId);
     if (!studySet) return;
 
     state.cards = studySet.cards || [];
     
-    document.getElementById('app-view').classList.add('hidden');
-    document.getElementById('set-view').classList.add('active');
+    document.getElementById('home-page').classList.remove('active');
+    document.getElementById('set-page').classList.add('active');
+    document.getElementById('back-to-home').style.display = 'block';
     
     document.getElementById('set-title').textContent = studySet.name;
     document.getElementById('set-description').textContent = studySet.description || '';
@@ -271,7 +269,7 @@ function renderStudySets() {
     }
 
     if (filtered.length === 0 && state.studySets.length > 0) {
-        grid.innerHTML = '<div class="empty-state"><h3>No matching study sets</h3><p>Try a different search term</p></div>';
+        grid.innerHTML = '<div class="empty-state"><div class="empty-icon">🔍</div><h3>No matching study sets</h3><p>Try a different search term</p></div>';
         empty.style.display = 'none';
         return;
     }
@@ -285,21 +283,21 @@ function renderStudySets() {
             : 0;
         
         return `
-            <div class="study-set-card" onclick="showSetView(${set.id})">
+            <div class="study-set-card" onclick="showSetPage(${set.id})">
                 <div class="study-set-header">
                     <div>
                         <div class="study-set-title">${escapeHtml(set.name)}</div>
                         <div class="study-set-count">${cardCount} card${cardCount !== 1 ? 's' : ''}</div>
                     </div>
                     <div class="study-set-actions" onclick="event.stopPropagation()">
-                        <button class="btn" onclick="editStudySet(${set.id})">edit</button>
-                        <button class="btn" onclick="deleteStudySet(${set.id})">delete</button>
+                        <button class="btn" onclick="editStudySet(${set.id})">Edit</button>
+                        <button class="btn" onclick="deleteStudySet(${set.id})">Delete</button>
                     </div>
                 </div>
                 ${set.description ? `<div class="study-set-description">${escapeHtml(set.description)}</div>` : ''}
                 <div class="study-set-meta">
                     <span>Mastery: ${avgMastery}%</span>
-                    <span>Last studied: ${set.lastStudied ? formatDate(set.lastStudied) : 'Never'}</span>
+                    <span>${set.lastStudied ? formatDate(set.lastStudied) : 'Not studied yet'}</span>
                 </div>
             </div>
         `;
@@ -309,7 +307,7 @@ function renderStudySets() {
 }
 
 function openCreateSetModal() {
-    document.getElementById('set-modal-title').textContent = 'Create study set';
+    document.getElementById('set-modal-title').textContent = 'Create Study Set';
     document.getElementById('set-id').value = '';
     document.getElementById('set-name').value = '';
     document.getElementById('set-desc').value = '';
@@ -320,7 +318,7 @@ function editStudySet(setId) {
     const set = state.studySets.find(s => s.id === setId);
     if (!set) return;
 
-    document.getElementById('set-modal-title').textContent = 'Edit study set';
+    document.getElementById('set-modal-title').textContent = 'Edit Study Set';
     document.getElementById('set-id').value = set.id;
     document.getElementById('set-name').value = set.name;
     document.getElementById('set-desc').value = set.description || '';
@@ -448,6 +446,8 @@ function handleCreate(e) {
     e.target.reset();
     state.selectedDifficulty = 'easy';
     document.querySelector('.difficulty-btn[data-difficulty="easy"]').classList.add('active');
+    
+    showNotification('Card added successfully', false);
 }
 
 function handleEdit(e) {
@@ -480,6 +480,7 @@ function handleEdit(e) {
         renderLibrary();
         updateStats();
         closeModal();
+        showNotification('Card updated', false);
     }
 }
 
@@ -575,7 +576,7 @@ function showCard() {
     const card = state.studyDeck[state.currentIndex];
     document.getElementById('card-question').textContent = card.equation;
     document.getElementById('card-answer').textContent = card.solution;
-    document.getElementById('card-counter').textContent = `${state.currentIndex + 1} of ${state.studyDeck.length}`;
+    document.getElementById('card-counter').textContent = `Card ${state.currentIndex + 1} of ${state.studyDeck.length}`;
     
     const progress = ((state.currentIndex + 1) / state.studyDeck.length) * 100;
     document.getElementById('progress-fill').style.width = `${progress}%`;
@@ -658,9 +659,9 @@ function endStudySession() {
     document.getElementById('know-btn').style.display = 'none';
     document.getElementById('learning-btn').style.display = 'none';
 
-    document.getElementById('card-question').textContent = 'Session complete';
-    document.getElementById('card-answer').textContent = 'Click start to study again';
-    document.getElementById('card-counter').textContent = 'Great work';
+    document.getElementById('card-question').textContent = 'Session complete! 🎉';
+    document.getElementById('card-answer').textContent = 'Great work! Click start to study again';
+    document.getElementById('card-counter').textContent = 'All cards reviewed';
     document.getElementById('flashcard').classList.remove('flipped');
 }
 
@@ -686,9 +687,9 @@ function renderLibrary() {
     empty.style.display = 'none';
     grid.innerHTML = filtered.map(card => `
         <div class="flashcard-item">
-            <h4>term/question</h4>
+            <h4>Term / Question</h4>
             <p>${escapeHtml(card.equation)}</p>
-            <h4>definition/answer</h4>
+            <h4>Definition / Answer</h4>
             <p>${escapeHtml(card.solution)}</p>
             <div class="card-meta">
                 <span class="difficulty-tag">${card.difficulty}</span>
@@ -698,8 +699,8 @@ function renderLibrary() {
                     `).join('')}
                 </div>
                 <div class="item-actions">
-                    <button class="btn" onclick="editCard(${card.id})">edit</button>
-                    <button class="btn" onclick="deleteCard(${card.id})">delete</button>
+                    <button class="btn" onclick="editCard(${card.id})">Edit</button>
+                    <button class="btn" onclick="deleteCard(${card.id})">Delete</button>
                 </div>
             </div>
         </div>
