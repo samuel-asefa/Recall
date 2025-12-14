@@ -95,6 +95,8 @@
                     <option value="medium">Medium</option>
                     <option value="hard">Hard</option>
                 </select>
+                <button id="undo-btn" class="btn" disabled>Undo</button>
+                <button id="redo-btn" class="btn" disabled>Redo</button>
             </div>
             <div id="flashcards-grid" class="flashcard-grid"></div>
             <div id="empty-library" class="empty-state" style="display: none;">
@@ -135,6 +137,12 @@
             </form>
         </div>
     </div>
+
+    <div id="undo-notification" class="undo-notification">
+        <span id="notification-text">Card deleted</span>
+        <button id="notification-undo" class="btn">Undo</button>
+    </div>
+
     <script src="main.js"></script>
 </body>
 </html>

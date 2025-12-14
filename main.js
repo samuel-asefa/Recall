@@ -260,7 +260,6 @@ function handleCreate(e) {
         type: 'create',
         card: { ...card }
     });
-    saveToStorage();
     updateStats();
     
     e.target.reset();
@@ -294,7 +293,6 @@ function handleEdit(e) {
             newCard: { ...newCard }
         });
         
-        saveToStorage();
         renderLibrary();
         updateStats();
         closeModal();
@@ -313,7 +311,6 @@ function deleteCard(id) {
                 card: deletedCard
             });
             
-            saveToStorage();
             renderLibrary();
             updateStats();
             showNotification('Card deleted');
@@ -503,9 +500,9 @@ function renderLibrary() {
     grid.innerHTML = filtered.map(card => `
         <div class="flashcard-item">
             <h4>term/question</h4>
-            <p>${card.equation}</p>
+            <p>${escapeHtml(card.equation)}</p>
             <h4>definition/answer</h4>
-            <p>${card.solution}</p>
+            <p>${escapeHtml(card.solution)}</p>
             <div class="card-meta">
                 <span class="difficulty-tag">${card.difficulty}</span>
                 <div class="mastery-dots">
@@ -520,6 +517,12 @@ function renderLibrary() {
             </div>
         </div>
     `).join('');
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 function updateStats() {
