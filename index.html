@@ -5,104 +5,135 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recall</title>
     <link rel="stylesheet" href="style.css">
-    <script src="main.js" defer></script>
 </head>
 <body>
-    <header>
-        <h1>Recall</h1>
-        <p>Create, study, and manage your equation flashcards</p>
-    </header>
+    <div class="container">
+        <header>
+            <h1 class="logo">Recall</h1>
+            <p class="tagline">Learn through active repetition</p>
+            <div class="stats">
+                <div class="stat"><span>Cards</span><span id="total-cards">0</span></div>
+                <div class="stat"><span>Studied today</span><span id="studied-today">0</span></div>
+                <div class="stat"><span>Mastery</span><span id="mastery-level">0%</span></div>
+            </div>
+        </header>
 
-    <div class="app-container">
         <div class="tabs">
             <button class="tab active" data-tab="create">Create</button>
             <button class="tab" data-tab="study">Study</button>
-            <button class="tab" data-tab="manage">Manage</button>
+            <button class="tab" data-tab="manage">Library</button>
         </div>
 
-        <div id="create" class="content create-section active">
-            <h2>Create New Flashcard</h2>
-            <form id="flashcard-form" class="flashcard-form">
+        <div id="create" class="content active">
+            <form id="create-form">
                 <div class="form-group">
-                    <label for="equation">Equation:</label>
-                    <textarea id="equation" required placeholder="Enter the equation (front of the card)"></textarea>
+                    <label>Term or Question</label>
+                    <textarea id="equation" placeholder="Enter your term or question" required></textarea>
                 </div>
                 <div class="form-group">
-                    <label for="solution">Solution:</label>
-                    <textarea id="solution" required placeholder="Enter the solution or explanation (back of the card)"></textarea>
+                    <label>Definition or Answer</label>
+                    <textarea id="solution" placeholder="Enter the definition or answer" required></textarea>
                 </div>
-                <div class="actions">
-                    <button type="submit" class="btn">Create Flashcard</button>
-                    <button type="reset" class="btn btn-secondary">Clear</button>
+                <div class="form-group">
+                    <label>Difficulty</label>
+                    <div class="difficulty-group">
+                        <button type="button" class="btn difficulty-btn active" data-difficulty="easy">Easy</button>
+                        <button type="button" class="btn difficulty-btn" data-difficulty="medium">Medium</button>
+                        <button type="button" class="btn difficulty-btn" data-difficulty="hard">Hard</button>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-primary">Create flashcard</button>
+                    <button type="reset" class="btn">Clear</button>
                 </div>
             </form>
         </div>
 
-        <div id="study" class="content study-section">
-            <h2>Study Flashcards</h2>
+        <div id="study" class="content">
             <div id="study-content">
-                <div class="flashcard-container">
-                    <div class="flashcard" id="current-flashcard">
-                        <div class="flashcard-front" id="flashcard-front">
-                            <p>Click "Start Studying" to begin</p>
+                <div class="study-info">
+                    <div class="card-counter" id="card-counter">Ready to begin</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="flashcard-viewport">
+                    <div class="flashcard-3d" id="flashcard">
+                        <div class="card-face card-front">
+                            <span class="card-label">Term/Question</span>
+                            <div id="card-question">click start to begin studying</div>
                         </div>
-                        <div class="flashcard-back" id="flashcard-back">
-                            <p>The answer will appear here</p>
+                        <div class="card-face card-back">
+                            <span class="card-label">Definition/Answer</span>
+                            <div id="card-answer">the solution will appear here</div>
                         </div>
                     </div>
                 </div>
-
-                <p id="card-counter">Card 0 of 0</p>
-
                 <div class="study-controls">
-                    <button id="prev-btn" class="btn btn-secondary">Previous</button>
-                    <button id="flip-btn" class="btn">Flip Card</button>
-                    <button id="next-btn" class="btn btn-secondary">Next</button>
-                </div>
-
-                <div class="actions" style="margin-top: 20px; justify-content: center;">
-                    <button id="start-study-btn" class="btn">Start Studying</button>
-                    <button id="shuffle-btn" class="btn btn-secondary">Shuffle Cards</button>
+                    <button id="start-btn" class="btn btn-primary">Start session</button>
+                    <button id="shuffle-btn" class="btn">Shuffle</button>
+                    <button id="flip-btn" class="btn" style="display: none;">Flip card</button>
+                    <button id="prev-btn" class="btn" style="display: none;">Previous</button>
+                    <button id="next-btn" class="btn" style="display: none;">next</button>
+                    <button id="know-btn" class="btn btn-primary" style="display: none;">I know this</button>
+                    <button id="learning-btn" class="btn" style="display: none;">Still learning</button>
                 </div>
             </div>
-
-            <p id="no-cards-message" class="no-flashcards-message" style="display: none;">
-                You don't have any flashcards yet. Create some to start studying!
-            </p>
+            <div id="empty-study" class="empty-state" style="display: none;">
+                <h3>No flashcards yet</h3>
+                <p>Create some flashcards to start studying</p>
+            </div>
         </div>
 
-        <div id="manage" class="content manage-section">
-            <h2>Manage Flashcards</h2>
-            <ul id="flashcards-list" class="flashcards-list">
-                <!-- Flashcards will be listed here -->
-            </ul>
-            <p id="no-cards-manage-message" class="no-flashcards-message">
-                You don't have any flashcards yet. Create some to manage them here!
-            </p>
+        <div id="manage" class="content">
+            <div class="filter-bar">
+                <input type="text" id="search" class="search-box" placeholder="search flashcards">
+                <select id="filter-difficulty" class="btn">
+                    <option value="all">All levels</option>
+                    <option value="easy">Easy</option>
+                    <option value="medium">Medium</option>
+                    <option value="hard">Hard</option>
+                </select>
+            </div>
+            <div id="flashcards-grid" class="flashcard-grid"></div>
+            <div id="empty-library" class="empty-state" style="display: none;">
+                <h3>Your library is empty</h3>
+                <p>Start creating flashcards to build your collection</p>
+            </div>
         </div>
     </div>
 
-    <!-- Edit Modal -->
     <div id="edit-modal" class="modal">
         <div class="modal-content">
-            <span class="close">&times;</span>
-            <h2>Edit Flashcard</h2>
-            <form id="edit-form" class="flashcard-form">
+            <div class="modal-header">
+                <h2>Edit flashcard</h2>
+                <button class="modal-close" id="close-modal">&times;</button>
+            </div>
+            <form id="edit-form">
                 <input type="hidden" id="edit-id">
                 <div class="form-group">
-                    <label for="edit-equation">Equation:</label>
+                    <label>Equation or question</label>
                     <textarea id="edit-equation" required></textarea>
                 </div>
                 <div class="form-group">
-                    <label for="edit-solution">Solution:</label>
+                    <label>Solution or answer</label>
                     <textarea id="edit-solution" required></textarea>
                 </div>
-                <div class="actions">
-                    <button type="submit" class="btn">Save Changes</button>
-                    <button type="button" id="cancel-edit" class="btn btn-secondary">Cancel</button>
+                <div class="form-group">
+                    <label>Difficulty</label>
+                    <div class="difficulty-group">
+                        <button type="button" class="btn edit-difficulty-btn" data-difficulty="easy">Easy</button>
+                        <button type="button" class="btn edit-difficulty-btn" data-difficulty="medium">Medium</button>
+                        <button type="button" class="btn edit-difficulty-btn" data-difficulty="hard">Hard</button>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-primary">Save changes</button>
+                    <button type="button" id="cancel-edit" class="btn">Cancel</button>
                 </div>
             </form>
         </div>
     </div>
+    <script src="main.js"></script>
 </body>
 </html>

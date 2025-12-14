@@ -1,271 +1,366 @@
-// Initialize the app when the DOM is ready
-document.addEventListener('DOMContentLoaded', function() {
-    // Tab functionality
-    const tabs = document.querySelectorAll('.tab');
-    const contents = document.querySelectorAll('.content');
+const state = {
+    cards: [],
+    studyDeck: [],
+    currentIndex: 0,
+    studiedToday: 0,
+    isStudying: false,
+    selectedDifficulty: 'easy',
+    editDifficulty: 'easy'
+};
 
-    tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            const tabId = tab.getAttribute('data-tab');
-            
-            // Remove active class from all tabs and contents
-            tabs.forEach(t => t.classList.remove('active'));
-            contents.forEach(c => c.classList.remove('active'));
-            
-            // Add active class to selected tab and content
-            tab.classList.add('active');
-            document.getElementById(tabId).classList.add('active');
+function init() {
+    loadFromStorage();
+    setupEventListeners();
+    updateStats();
+    renderLibrary();
+}
 
-            // Update UI based on the selected tab
-            if (tabId === 'study') {
-                updateStudyView();
-            } else if (tabId === 'manage') {
-                renderFlashcardsList();
-            }
-        });
+function loadFromStorage() {
+    const saved = localStorage.getItem('recallCards');
+    if (saved) {
+        state.cards = JSON.parse(saved);
+    }
+    const studied = localStorage.getItem('studiedToday');
+    const lastDate = localStorage.getItem('lastStudyDate');
+    const today = new Date().toDateString();
+    
+    if (lastDate === today && studied) {
+        state.studiedToday = parseInt(studied);
+    } else {
+        state.studiedToday = 0;
+        localStorage.setItem('lastStudyDate', today);
+    }
+}
+
+function saveToStorage() {
+    localStorage.setItem('recallCards', JSON.stringify(state.cards));
+    localStorage.setItem('studiedToday', state.studiedToday.toString());
+}
+
+function setupEventListeners() {
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', () => switchTab(tab.dataset.tab));
     });
 
-    // Flashcard functionality
-    let flashcards = JSON.parse(localStorage.getItem('equationFlashcards')) || [];
-    let currentCardIndex = 0;
-    let studyDeck = [];
-
-    // Form submission - Create new flashcard
-    const flashcardForm = document.getElementById('flashcard-form');
-    flashcardForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        const equation = document.getElementById('equation').value.trim();
-        const solution = document.getElementById('solution').value.trim();
-        
-        if (equation && solution) {
-            const newFlashcard = {
-                id: Date.now(),
-                equation: equation,
-                solution: solution
-            };
-            
-            flashcards.push(newFlashcard);
-            saveFlashcards();
-            flashcardForm.reset();
-            
-            // Show feedback
-            alert('Flashcard created successfully!');
-        }
+    document.getElementById('create-form').addEventListener('submit', handleCreate);
+    document.getElementById('edit-form').addEventListener('submit', handleEdit);
+    
+    document.querySelectorAll('.difficulty-btn').forEach(btn => {
+        btn.addEventListener('click', () => selectDifficulty(btn));
     });
 
-    // Edit Form Submission
-    const editForm = document.getElementById('edit-form');
-    editForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        const id = parseInt(document.getElementById('edit-id').value);
-        const equation = document.getElementById('edit-equation').value.trim();
-        const solution = document.getElementById('edit-solution').value.trim();
-        
-        if (equation && solution) {
-            const cardIndex = flashcards.findIndex(card => card.id === id);
-            if (cardIndex !== -1) {
-                flashcards[cardIndex] = {
-                    id: id,
-                    equation: equation,
-                    solution: solution
-                };
-                
-                saveFlashcards();
-                closeModal();
-                renderFlashcardsList();
-                
-                // Show feedback
-                alert('Flashcard updated successfully!');
-            }
-        }
+    document.querySelectorAll('.edit-difficulty-btn').forEach(btn => {
+        btn.addEventListener('click', () => selectEditDifficulty(btn));
     });
 
-    // Study functionality
-    const flashcardElement = document.getElementById('current-flashcard');
-    const frontElement = document.getElementById('flashcard-front');
-    const backElement = document.getElementById('flashcard-back');
-    const cardCounter = document.getElementById('card-counter');
-    const prevBtn = document.getElementById('prev-btn');
-    const nextBtn = document.getElementById('next-btn');
-    const flipBtn = document.getElementById('flip-btn');
-    const startStudyBtn = document.getElementById('start-study-btn');
-    const shuffleBtn = document.getElementById('shuffle-btn');
-    const studyContent = document.getElementById('study-content');
-    const noCardsMessage = document.getElementById('no-cards-message');
+    document.getElementById('start-btn').addEventListener('click', startStudy);
+    document.getElementById('shuffle-btn').addEventListener('click', shuffleDeck);
+    document.getElementById('flip-btn').addEventListener('click', flipCard);
+    document.getElementById('prev-btn').addEventListener('click', prevCard);
+    document.getElementById('next-btn').addEventListener('click', nextCard);
+    document.getElementById('know-btn').addEventListener('click', markKnown);
+    document.getElementById('learning-btn').addEventListener('click', markLearning);
 
-    flipBtn.addEventListener('click', function() {
-        flashcardElement.classList.toggle('flipped');
+    document.getElementById('search').addEventListener('input', renderLibrary);
+    document.getElementById('filter-difficulty').addEventListener('change', renderLibrary);
+
+    document.getElementById('close-modal').addEventListener('click', closeModal);
+    document.getElementById('cancel-edit').addEventListener('click', closeModal);
+
+    document.getElementById('flashcard').addEventListener('click', flipCard);
+}
+
+function switchTab(tabName) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
+    
+    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+    document.getElementById(tabName).classList.add('active');
+
+    if (tabName === 'study') {
+        checkStudyAvailability();
+    } else if (tabName === 'manage') {
+        renderLibrary();
+    }
+}
+
+function selectDifficulty(btn) {
+    document.querySelectorAll('.difficulty-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.selectedDifficulty = btn.dataset.difficulty;
+}
+
+function selectEditDifficulty(btn) {
+    document.querySelectorAll('.edit-difficulty-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.editDifficulty = btn.dataset.difficulty;
+}
+
+function handleCreate(e) {
+    e.preventDefault();
+    
+    const equation = document.getElementById('equation').value.trim();
+    const solution = document.getElementById('solution').value.trim();
+    
+    const card = {
+        id: Date.now(),
+        equation,
+        solution,
+        difficulty: state.selectedDifficulty,
+        mastery: 0,
+        lastStudied: null,
+        timesStudied: 0
+    };
+
+    state.cards.push(card);
+    saveToStorage();
+    updateStats();
+    
+    e.target.reset();
+    state.selectedDifficulty = 'easy';
+    document.querySelector('.difficulty-btn[data-difficulty="easy"]').classList.add('active');
+}
+
+function handleEdit(e) {
+    e.preventDefault();
+    
+    const id = parseInt(document.getElementById('edit-id').value);
+    const equation = document.getElementById('edit-equation').value.trim();
+    const solution = document.getElementById('edit-solution').value.trim();
+    
+    const index = state.cards.findIndex(c => c.id === id);
+    if (index !== -1) {
+        state.cards[index] = {
+            ...state.cards[index],
+            equation,
+            solution,
+            difficulty: state.editDifficulty
+        };
+        saveToStorage();
+        renderLibrary();
+        updateStats();
+        closeModal();
+    }
+}
+
+function deleteCard(id) {
+    if (confirm('delete this flashcard?')) {
+        state.cards = state.cards.filter(c => c.id !== id);
+        saveToStorage();
+        renderLibrary();
+        updateStats();
+    }
+}
+
+function editCard(id) {
+    const card = state.cards.find(c => c.id === id);
+    if (!card) return;
+
+    document.getElementById('edit-id').value = card.id;
+    document.getElementById('edit-equation').value = card.equation;
+    document.getElementById('edit-solution').value = card.solution;
+    state.editDifficulty = card.difficulty;
+    
+    document.querySelectorAll('.edit-difficulty-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.difficulty === card.difficulty);
     });
 
-    startStudyBtn.addEventListener('click', function() {
-        if (flashcards.length > 0) {
-            // Create a copy of the flashcards for studying
-            studyDeck = [...flashcards];
-            currentCardIndex = 0;
-            
-            updateCardDisplay();
-            flashcardElement.classList.remove('flipped');
-        } else {
-            alert('You need to create flashcards first!');
-        }
-    });
+    document.getElementById('edit-modal').classList.add('active');
+}
 
-    shuffleBtn.addEventListener('click', function() {
-        if (studyDeck.length > 0) {
-            // Shuffle the study deck
-            studyDeck = shuffleArray([...studyDeck]);
-            currentCardIndex = 0;
-            
-            updateCardDisplay();
-            flashcardElement.classList.remove('flipped');
-            
-            alert('Cards shuffled!');
-        } else {
-            alert('Start studying first to shuffle the cards!');
-        }
-    });
+function closeModal() {
+    document.getElementById('edit-modal').classList.remove('active');
+}
 
-    prevBtn.addEventListener('click', function() {
-        if (studyDeck.length > 0) {
-            currentCardIndex = (currentCardIndex - 1 + studyDeck.length) % studyDeck.length;
-            updateCardDisplay();
-            flashcardElement.classList.remove('flipped');
-        }
-    });
+function checkStudyAvailability() {
+    if (state.cards.length === 0) {
+        document.getElementById('study-content').style.display = 'none';
+        document.getElementById('empty-study').style.display = 'block';
+    } else {
+        document.getElementById('study-content').style.display = 'block';
+        document.getElementById('empty-study').style.display = 'none';
+    }
+}
 
-    nextBtn.addEventListener('click', function() {
-        if (studyDeck.length > 0) {
-            currentCardIndex = (currentCardIndex + 1) % studyDeck.length;
-            updateCardDisplay();
-            flashcardElement.classList.remove('flipped');
-        }
-    });
+function startStudy() {
+    if (state.cards.length === 0) return;
 
-    // Edit Modal functionality
-    const modal = document.getElementById('edit-modal');
-    const closeBtn = document.querySelector('.close');
-    const cancelBtn = document.getElementById('cancel-edit');
+    state.studyDeck = [...state.cards];
+    state.currentIndex = 0;
+    state.isStudying = true;
 
-    closeBtn.addEventListener('click', closeModal);
-    cancelBtn.addEventListener('click', closeModal);
+    document.getElementById('start-btn').style.display = 'none';
+    document.getElementById('shuffle-btn').style.display = 'none';
+    document.getElementById('flip-btn').style.display = 'inline-block';
+    document.getElementById('prev-btn').style.display = 'inline-block';
+    document.getElementById('next-btn').style.display = 'inline-block';
+    document.getElementById('know-btn').style.display = 'inline-block';
+    document.getElementById('learning-btn').style.display = 'inline-block';
 
-    window.addEventListener('click', function(event) {
-        if (event.target === modal) {
-            closeModal();
-        }
-    });
+    showCard();
+}
 
-    // Functions
-    function saveFlashcards() {
-        localStorage.setItem('equationFlashcards', JSON.stringify(flashcards));
+function shuffleDeck() {
+    if (state.cards.length === 0) return;
+    
+    state.studyDeck = [...state.cards].sort(() => Math.random() - 0.5);
+    state.currentIndex = 0;
+    state.isStudying = true;
+
+    document.getElementById('start-btn').style.display = 'none';
+    document.getElementById('shuffle-btn').style.display = 'none';
+    document.getElementById('flip-btn').style.display = 'inline-block';
+    document.getElementById('prev-btn').style.display = 'inline-block';
+    document.getElementById('next-btn').style.display = 'inline-block';
+    document.getElementById('know-btn').style.display = 'inline-block';
+    document.getElementById('learning-btn').style.display = 'inline-block';
+
+    showCard();
+}
+
+function showCard() {
+    if (state.studyDeck.length === 0) return;
+
+    const card = state.studyDeck[state.currentIndex];
+    document.getElementById('card-question').textContent = card.equation;
+    document.getElementById('card-answer').textContent = card.solution;
+    document.getElementById('card-counter').textContent = `${state.currentIndex + 1} of ${state.studyDeck.length}`;
+    
+    const progress = ((state.currentIndex + 1) / state.studyDeck.length) * 100;
+    document.getElementById('progress-fill').style.width = `${progress}%`;
+
+    document.getElementById('flashcard').classList.remove('flipped');
+}
+
+function flipCard() {
+    if (!state.isStudying) return;
+    document.getElementById('flashcard').classList.toggle('flipped');
+}
+
+function prevCard() {
+    if (state.currentIndex > 0) {
+        state.currentIndex--;
+        showCard();
+    }
+}
+
+function nextCard() {
+    if (state.currentIndex < state.studyDeck.length - 1) {
+        state.currentIndex++;
+        showCard();
+    } else {
+        endStudySession();
+    }
+}
+
+function markKnown() {
+    const card = state.studyDeck[state.currentIndex];
+    const originalCard = state.cards.find(c => c.id === card.id);
+    
+    if (originalCard) {
+        originalCard.mastery = Math.min(5, originalCard.mastery + 1);
+        originalCard.lastStudied = Date.now();
+        originalCard.timesStudied++;
     }
 
-    function updateStudyView() {
-        if (flashcards.length > 0) {
-            studyContent.style.display = 'block';
-            noCardsMessage.style.display = 'none';
-        } else {
-            studyContent.style.display = 'none';
-            noCardsMessage.style.display = 'block';
-        }
+    state.studiedToday++;
+    saveToStorage();
+    updateStats();
+
+    if (state.currentIndex < state.studyDeck.length - 1) {
+        nextCard();
+    } else {
+        endStudySession();
+    }
+}
+
+function markLearning() {
+    const card = state.studyDeck[state.currentIndex];
+    const originalCard = state.cards.find(c => c.id === card.id);
+    
+    if (originalCard) {
+        originalCard.lastStudied = Date.now();
+        originalCard.timesStudied++;
     }
 
-    function renderFlashcardsList() {
-        const flashcardsList = document.getElementById('flashcards-list');
-        const noCardsManageMessage = document.getElementById('no-cards-manage-message');
-        
-        // Clear the list
-        flashcardsList.innerHTML = '';
-        
-        if (flashcards.length > 0) {
-            noCardsManageMessage.style.display = 'none';
-            
-            // Add each flashcard to the list
-            flashcards.forEach(card => {
-                const li = document.createElement('li');
-                li.className = 'flashcard-item';
-                
-                const contentDiv = document.createElement('div');
-                contentDiv.className = 'flashcard-content';
-                
-                const equation = document.createElement('p');
-                equation.textContent = `Equation: ${card.equation}`;
-                
-                const solution = document.createElement('p');
-                solution.textContent = `Solution: ${card.solution}`;
-                
-                contentDiv.appendChild(equation);
-                contentDiv.appendChild(solution);
-                
-                const actionsDiv = document.createElement('div');
-                actionsDiv.className = 'flashcard-item-actions';
-                
-                const editBtn = document.createElement('button');
-                editBtn.className = 'btn';
-                editBtn.textContent = 'Edit';
-                editBtn.addEventListener('click', () => openEditModal(card));
-                
-                const deleteBtn = document.createElement('button');
-                deleteBtn.className = 'btn btn-danger';
-                deleteBtn.textContent = 'Delete';
-                deleteBtn.addEventListener('click', () => deleteFlashcard(card.id));
-                
-                actionsDiv.appendChild(editBtn);
-                actionsDiv.appendChild(deleteBtn);
-                
-                li.appendChild(contentDiv);
-                li.appendChild(actionsDiv);
-                
-                flashcardsList.appendChild(li);
-            });
-        } else {
-            noCardsManageMessage.style.display = 'block';
-        }
+    state.studiedToday++;
+    saveToStorage();
+    updateStats();
+
+    if (state.currentIndex < state.studyDeck.length - 1) {
+        nextCard();
+    } else {
+        endStudySession();
+    }
+}
+
+function endStudySession() {
+    state.isStudying = false;
+    
+    document.getElementById('start-btn').style.display = 'inline-block';
+    document.getElementById('shuffle-btn').style.display = 'inline-block';
+    document.getElementById('flip-btn').style.display = 'none';
+    document.getElementById('prev-btn').style.display = 'none';
+    document.getElementById('next-btn').style.display = 'none';
+    document.getElementById('know-btn').style.display = 'none';
+    document.getElementById('learning-btn').style.display = 'none';
+
+    document.getElementById('card-question').textContent = 'session complete';
+    document.getElementById('card-answer').textContent = 'click start to study again';
+    document.getElementById('card-counter').textContent = 'great work';
+    document.getElementById('flashcard').classList.remove('flipped');
+}
+
+function renderLibrary() {
+    const grid = document.getElementById('flashcards-grid');
+    const empty = document.getElementById('empty-library');
+    const searchTerm = document.getElementById('search').value.toLowerCase();
+    const filterDiff = document.getElementById('filter-difficulty').value;
+
+    let filtered = state.cards.filter(card => {
+        const matchesSearch = card.equation.toLowerCase().includes(searchTerm) || 
+                            card.solution.toLowerCase().includes(searchTerm);
+        const matchesDiff = filterDiff === 'all' || card.difficulty === filterDiff;
+        return matchesSearch && matchesDiff;
+    });
+
+    if (filtered.length === 0) {
+        grid.innerHTML = '';
+        empty.style.display = 'block';
+        return;
     }
 
-    function updateCardDisplay() {
-        if (studyDeck.length > 0) {
-            const currentCard = studyDeck[currentCardIndex];
-            frontElement.innerHTML = `<p>${currentCard.equation}</p>`;
-            backElement.innerHTML = `<p>${currentCard.solution}</p>`;
-            cardCounter.textContent = `Card ${currentCardIndex + 1} of ${studyDeck.length}`;
-        }
-    }
+    empty.style.display = 'none';
+    grid.innerHTML = filtered.map(card => `
+        <div class="flashcard-item">
+            <h4>question</h4>
+            <p>${card.equation}</p>
+            <h4>answer</h4>
+            <p>${card.solution}</p>
+            <div class="card-meta">
+                <span class="difficulty-tag">${card.difficulty}</span>
+                <div class="mastery-dots">
+                    ${Array(5).fill(0).map((_, i) => `
+                        <div class="mastery-dot ${i < card.mastery ? 'filled' : ''}"></div>
+                    `).join('')}
+                </div>
+                <div class="item-actions">
+                    <button class="btn" onclick="editCard(${card.id})">edit</button>
+                    <button class="btn" onclick="deleteCard(${card.id})">delete</button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
 
-    function openEditModal(card) {
-        document.getElementById('edit-id').value = card.id;
-        document.getElementById('edit-equation').value = card.equation;
-        document.getElementById('edit-solution').value = card.solution;
-        
-        modal.style.display = 'block';
-    }
+function updateStats() {
+    document.getElementById('total-cards').textContent = state.cards.length;
+    document.getElementById('studied-today').textContent = state.studiedToday;
+    
+    const avgMastery = state.cards.length > 0 
+        ? Math.round((state.cards.reduce((sum, c) => sum + c.mastery, 0) / (state.cards.length * 5)) * 100)
+        : 0;
+    document.getElementById('mastery-level').textContent = `${avgMastery}%`;
+}
 
-    function closeModal() {
-        modal.style.display = 'none';
-    }
-
-    function deleteFlashcard(id) {
-        if (confirm('Are you sure you want to delete this flashcard?')) {
-            flashcards = flashcards.filter(card => card.id !== id);
-            saveFlashcards();
-            renderFlashcardsList();
-            
-            // Update study view if we're in study mode
-            updateStudyView();
-        }
-    }
-
-    function shuffleArray(array) {
-        for (let i = array.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [array[i], array[j]] = [array[j], array[i]];
-        }
-        return array;
-    }
-
-    // Initial render
-    renderFlashcardsList();
-    updateStudyView();
-});
+init();
