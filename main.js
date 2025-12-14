@@ -6,7 +6,10 @@ const state = {
     isStudying: false,
     selectedDifficulty: 'easy',
     editDifficulty: 'easy',
-    theme: 'light'
+    theme: 'light',
+    history: [],
+    historyIndex: -1,
+    maxHistorySize: 50
 };
 
 function init() {
@@ -15,6 +18,7 @@ function init() {
     setupEventListeners();
     updateStats();
     renderLibrary();
+    updateUndoRedoButtons();
 }
 
 function loadTheme() {
@@ -51,11 +55,109 @@ function loadFromStorage() {
         state.studiedToday = 0;
         localStorage.setItem('lastStudyDate', today);
     }
+
+    const savedHistory = localStorage.getItem('recallHistory');
+    if (savedHistory) {
+        const historyData = JSON.parse(savedHistory);
+        state.history = historyData.history || [];
+        state.historyIndex = historyData.index !== undefined ? historyData.index : -1;
+    }
 }
 
 function saveToStorage() {
     localStorage.setItem('recallCards', JSON.stringify(state.cards));
     localStorage.setItem('studiedToday', state.studiedToday.toString());
+    localStorage.setItem('recallHistory', JSON.stringify({
+        history: state.history,
+        index: state.historyIndex
+    }));
+}
+
+function addToHistory(action) {
+    if (state.historyIndex < state.history.length - 1) {
+        state.history = state.history.slice(0, state.historyIndex + 1);
+    }
+
+    state.history.push(action);
+    
+    if (state.history.length > state.maxHistorySize) {
+        state.history.shift();
+    } else {
+        state.historyIndex++;
+    }
+
+    saveToStorage();
+    updateUndoRedoButtons();
+}
+
+function undo() {
+    if (state.historyIndex < 0) return;
+
+    const action = state.history[state.historyIndex];
+    
+    if (action.type === 'delete') {
+        state.cards.push(action.card);
+        showNotification('Card restored', false);
+    } else if (action.type === 'create') {
+        state.cards = state.cards.filter(c => c.id !== action.card.id);
+    } else if (action.type === 'edit') {
+        const index = state.cards.findIndex(c => c.id === action.cardId);
+        if (index !== -1) {
+            state.cards[index] = action.oldCard;
+        }
+    }
+
+    state.historyIndex--;
+    saveToStorage();
+    updateStats();
+    renderLibrary();
+    updateUndoRedoButtons();
+}
+
+function redo() {
+    if (state.historyIndex >= state.history.length - 1) return;
+
+    state.historyIndex++;
+    const action = state.history[state.historyIndex];
+    
+    if (action.type === 'delete') {
+        state.cards = state.cards.filter(c => c.id !== action.card.id);
+    } else if (action.type === 'create') {
+        state.cards.push(action.card);
+    } else if (action.type === 'edit') {
+        const index = state.cards.findIndex(c => c.id === action.cardId);
+        if (index !== -1) {
+            state.cards[index] = action.newCard;
+        }
+    }
+
+    saveToStorage();
+    updateStats();
+    renderLibrary();
+    updateUndoRedoButtons();
+}
+
+function updateUndoRedoButtons() {
+    const undoBtn = document.getElementById('undo-btn');
+    const redoBtn = document.getElementById('redo-btn');
+    
+    undoBtn.disabled = state.historyIndex < 0;
+    redoBtn.disabled = state.historyIndex >= state.history.length - 1;
+}
+
+function showNotification(message, showUndoButton = true) {
+    const notification = document.getElementById('undo-notification');
+    const notificationText = document.getElementById('notification-text');
+    const undoButton = document.getElementById('notification-undo');
+    
+    notificationText.textContent = message;
+    undoButton.style.display = showUndoButton ? 'block' : 'none';
+    
+    notification.classList.add('show');
+    
+    setTimeout(() => {
+        notification.classList.remove('show');
+    }, 4000);
 }
 
 function setupEventListeners() {
@@ -91,6 +193,23 @@ function setupEventListeners() {
     document.getElementById('cancel-edit').addEventListener('click', closeModal);
 
     document.getElementById('flashcard').addEventListener('click', flipCard);
+
+    document.getElementById('undo-btn').addEventListener('click', undo);
+    document.getElementById('redo-btn').addEventListener('click', redo);
+    document.getElementById('notification-undo').addEventListener('click', () => {
+        undo();
+        document.getElementById('undo-notification').classList.remove('show');
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+            e.preventDefault();
+            undo();
+        } else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+            e.preventDefault();
+            redo();
+        }
+    });
 }
 
 function switchTab(tabName) {
@@ -104,6 +223,7 @@ function switchTab(tabName) {
         checkStudyAvailability();
     } else if (tabName === 'manage') {
         renderLibrary();
+        updateUndoRedoButtons();
     }
 }
 
@@ -136,6 +256,10 @@ function handleCreate(e) {
     };
 
     state.cards.push(card);
+    addToHistory({
+        type: 'create',
+        card: { ...card }
+    });
     saveToStorage();
     updateStats();
     
@@ -153,12 +277,23 @@ function handleEdit(e) {
     
     const index = state.cards.findIndex(c => c.id === id);
     if (index !== -1) {
-        state.cards[index] = {
+        const oldCard = { ...state.cards[index] };
+        const newCard = {
             ...state.cards[index],
             equation,
             solution,
             difficulty: state.editDifficulty
         };
+        
+        state.cards[index] = newCard;
+        
+        addToHistory({
+            type: 'edit',
+            cardId: id,
+            oldCard: oldCard,
+            newCard: { ...newCard }
+        });
+        
         saveToStorage();
         renderLibrary();
         updateStats();
@@ -167,11 +302,22 @@ function handleEdit(e) {
 }
 
 function deleteCard(id) {
-    if (confirm('delete this flashcard?')) {
-        state.cards = state.cards.filter(c => c.id !== id);
-        saveToStorage();
-        renderLibrary();
-        updateStats();
+    if (confirm('Delete this flashcard?')) {
+        const index = state.cards.findIndex(c => c.id === id);
+        if (index !== -1) {
+            const deletedCard = { ...state.cards[index] };
+            state.cards = state.cards.filter(c => c.id !== id);
+            
+            addToHistory({
+                type: 'delete',
+                card: deletedCard
+            });
+            
+            saveToStorage();
+            renderLibrary();
+            updateStats();
+            showNotification('Card deleted');
+        }
     }
 }
 
@@ -328,9 +474,9 @@ function endStudySession() {
     document.getElementById('know-btn').style.display = 'none';
     document.getElementById('learning-btn').style.display = 'none';
 
-    document.getElementById('card-question').textContent = 'session complete';
-    document.getElementById('card-answer').textContent = 'click start to study again';
-    document.getElementById('card-counter').textContent = 'great work';
+    document.getElementById('card-question').textContent = 'Session complete';
+    document.getElementById('card-answer').textContent = 'Click start to study again';
+    document.getElementById('card-counter').textContent = 'Great work';
     document.getElementById('flashcard').classList.remove('flipped');
 }
 

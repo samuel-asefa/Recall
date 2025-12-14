@@ -187,6 +187,15 @@ select {
     background: var(--hover);
 }
 
+.btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.btn:disabled:hover {
+    background: var(--bg);
+}
+
 .btn-primary {
     background: var(--text);
     color: var(--bg);
@@ -195,6 +204,10 @@ select {
 
 .btn-primary:hover {
     opacity: 0.8;
+}
+
+.btn-primary:disabled:hover {
+    opacity: 0.3;
 }
 
 .difficulty-group {
@@ -459,9 +472,58 @@ select {
     flex: 1;
 }
 
+.undo-redo-controls {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.undo-notification {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    background: var(--text);
+    color: var(--bg);
+    padding: 16px 20px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.3s ease;
+    z-index: 2000;
+    pointer-events: none;
+}
+
+.undo-notification.show {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: all;
+}
+
+.undo-notification .btn {
+    padding: 6px 12px;
+    font-size: 12px;
+    background: var(--bg);
+    color: var(--text);
+    border: none;
+}
+
+.undo-notification .btn:hover {
+    opacity: 0.8;
+}
+
 @media (max-width: 768px) {
     .flashcard-3d { height: 280px; }
     .card-face { padding: 30px; font-size: 16px; }
     .tabs { overflow-x: auto; }
     .stats { flex-direction: column; gap: 8px; }
+    .undo-notification {
+        bottom: 20px;
+        right: 20px;
+        left: 20px;
+        font-size: 12px;
+    }
 }
