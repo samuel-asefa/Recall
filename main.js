@@ -5,14 +5,35 @@ const state = {
     studiedToday: 0,
     isStudying: false,
     selectedDifficulty: 'easy',
-    editDifficulty: 'easy'
+    editDifficulty: 'easy',
+    theme: 'light'
 };
 
 function init() {
     loadFromStorage();
+    loadTheme();
     setupEventListeners();
     updateStats();
     renderLibrary();
+}
+
+function loadTheme() {
+    const savedTheme = localStorage.getItem('recallTheme') || 'light';
+    state.theme = savedTheme;
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    updateThemeIcon();
+}
+
+function toggleTheme() {
+    state.theme = state.theme === 'light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', state.theme);
+    localStorage.setItem('recallTheme', state.theme);
+    updateThemeIcon();
+}
+
+function updateThemeIcon() {
+    const icon = state.theme === 'light' ? '☀' : '☾';
+    document.getElementById('theme-toggle').textContent = icon;
 }
 
 function loadFromStorage() {
@@ -38,6 +59,8 @@ function saveToStorage() {
 }
 
 function setupEventListeners() {
+    document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+
     document.querySelectorAll('.tab').forEach(tab => {
         tab.addEventListener('click', () => switchTab(tab.dataset.tab));
     });
@@ -333,9 +356,9 @@ function renderLibrary() {
     empty.style.display = 'none';
     grid.innerHTML = filtered.map(card => `
         <div class="flashcard-item">
-            <h4>question</h4>
+            <h4>term/question</h4>
             <p>${card.equation}</p>
-            <h4>answer</h4>
+            <h4>definition/answer</h4>
             <p>${card.solution}</p>
             <div class="card-meta">
                 <span class="difficulty-tag">${card.difficulty}</span>

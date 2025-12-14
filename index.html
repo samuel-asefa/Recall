@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Recall</title>
+    <title>recall</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <header>
+            <button class="theme-toggle" id="theme-toggle" aria-label="toggle theme">☀</button>
             <h1 class="logo">Recall</h1>
             <p class="tagline">Learn through active repetition</p>
             <div class="stats">
@@ -27,11 +28,11 @@
         <div id="create" class="content active">
             <form id="create-form">
                 <div class="form-group">
-                    <label>Term or Question</label>
+                    <label>Term or question</label>
                     <textarea id="equation" placeholder="Enter your term or question" required></textarea>
                 </div>
                 <div class="form-group">
-                    <label>Definition or Answer</label>
+                    <label>Definition or answer</label>
                     <textarea id="solution" placeholder="Enter the definition or answer" required></textarea>
                 </div>
                 <div class="form-group">
@@ -60,12 +61,12 @@
                 <div class="flashcard-viewport">
                     <div class="flashcard-3d" id="flashcard">
                         <div class="card-face card-front">
-                            <span class="card-label">Term/Question</span>
-                            <div id="card-question">click start to begin studying</div>
+                            <span class="card-label">Term/question</span>
+                            <div id="card-question">Click start to begin studying</div>
                         </div>
                         <div class="card-face card-back">
-                            <span class="card-label">Definition/Answer</span>
-                            <div id="card-answer">the solution will appear here</div>
+                            <span class="card-label">Definition/answer</span>
+                            <div id="card-answer">The solution will appear here</div>
                         </div>
                     </div>
                 </div>
@@ -74,7 +75,7 @@
                     <button id="shuffle-btn" class="btn">Shuffle</button>
                     <button id="flip-btn" class="btn" style="display: none;">Flip card</button>
                     <button id="prev-btn" class="btn" style="display: none;">Previous</button>
-                    <button id="next-btn" class="btn" style="display: none;">next</button>
+                    <button id="next-btn" class="btn" style="display: none;">Next</button>
                     <button id="know-btn" class="btn btn-primary" style="display: none;">I know this</button>
                     <button id="learning-btn" class="btn" style="display: none;">Still learning</button>
                 </div>
@@ -87,7 +88,7 @@
 
         <div id="manage" class="content">
             <div class="filter-bar">
-                <input type="text" id="search" class="search-box" placeholder="search flashcards">
+                <input type="text" id="search" class="search-box" placeholder="Search flashcards">
                 <select id="filter-difficulty" class="btn">
                     <option value="all">All levels</option>
                     <option value="easy">Easy</option>
@@ -112,11 +113,11 @@
             <form id="edit-form">
                 <input type="hidden" id="edit-id">
                 <div class="form-group">
-                    <label>Equation or question</label>
+                    <label>Term or question</label>
                     <textarea id="edit-equation" required></textarea>
                 </div>
                 <div class="form-group">
-                    <label>Solution or answer</label>
+                    <label>Definition or answer</label>
                     <textarea id="edit-solution" required></textarea>
                 </div>
                 <div class="form-group">
