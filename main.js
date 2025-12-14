@@ -1,4 +1,6 @@
 const state = {
+    studySets: [],
+    currentSetId: null,
     cards: [],
     studyDeck: [],
     currentIndex: 0,
@@ -16,9 +18,7 @@ function init() {
     loadFromStorage();
     loadTheme();
     setupEventListeners();
-    updateStats();
-    renderLibrary();
-    updateUndoRedoButtons();
+    showStudySetsView();
 }
 
 function loadTheme() {
@@ -37,14 +37,18 @@ function toggleTheme() {
 
 function updateThemeIcon() {
     const icon = state.theme === 'light' ? '☀' : '☾';
-    document.getElementById('theme-toggle').textContent = icon;
+    const toggle1 = document.getElementById('theme-toggle');
+    const toggle2 = document.getElementById('theme-toggle-set');
+    if (toggle1) toggle1.textContent = icon;
+    if (toggle2) toggle2.textContent = icon;
 }
 
 function loadFromStorage() {
-    const saved = localStorage.getItem('recallCards');
-    if (saved) {
-        state.cards = JSON.parse(saved);
+    const savedSets = localStorage.getItem('recallStudySets');
+    if (savedSets) {
+        state.studySets = JSON.parse(savedSets);
     }
+
     const studied = localStorage.getItem('studiedToday');
     const lastDate = localStorage.getItem('lastStudyDate');
     const today = new Date().toDateString();
@@ -65,7 +69,7 @@ function loadFromStorage() {
 }
 
 function saveToStorage() {
-    localStorage.setItem('recallCards', JSON.stringify(state.cards));
+    localStorage.setItem('recallStudySets', JSON.stringify(state.studySets));
     localStorage.setItem('studiedToday', state.studiedToday.toString());
     localStorage.setItem('recallHistory', JSON.stringify({
         history: state.history,
@@ -108,6 +112,7 @@ function undo() {
     }
 
     state.historyIndex--;
+    updateCurrentSet();
     saveToStorage();
     updateStats();
     renderLibrary();
@@ -131,6 +136,7 @@ function redo() {
         }
     }
 
+    updateCurrentSet();
     saveToStorage();
     updateStats();
     renderLibrary();
@@ -141,8 +147,8 @@ function updateUndoRedoButtons() {
     const undoBtn = document.getElementById('undo-btn');
     const redoBtn = document.getElementById('redo-btn');
     
-    undoBtn.disabled = state.historyIndex < 0;
-    redoBtn.disabled = state.historyIndex >= state.history.length - 1;
+    if (undoBtn) undoBtn.disabled = state.historyIndex < 0;
+    if (redoBtn) redoBtn.disabled = state.historyIndex >= state.history.length - 1;
 }
 
 function showNotification(message, showUndoButton = true) {
@@ -162,6 +168,15 @@ function showNotification(message, showUndoButton = true) {
 
 function setupEventListeners() {
     document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+    document.getElementById('theme-toggle-set').addEventListener('click', toggleTheme);
+
+    document.getElementById('set-form').addEventListener('submit', handleCreateSet);
+    document.getElementById('close-set-modal').addEventListener('click', closeSetModal);
+    document.getElementById('cancel-set').addEventListener('click', closeSetModal);
+
+    document.getElementById('back-to-sets').addEventListener('click', showStudySetsView);
+
+    document.getElementById('search-sets').addEventListener('input', renderStudySets);
 
     document.querySelectorAll('.tab').forEach(tab => {
         tab.addEventListener('click', () => switchTab(tab.dataset.tab));
@@ -212,6 +227,173 @@ function setupEventListeners() {
     });
 }
 
+function showStudySetsView() {
+    document.getElementById('app-view').classList.remove('hidden');
+    document.getElementById('set-view').classList.remove('active');
+    state.currentSetId = null;
+    renderStudySets();
+    updateGlobalStats();
+}
+
+function showSetView(setId) {
+    state.currentSetId = setId;
+    const studySet = state.studySets.find(s => s.id === setId);
+    if (!studySet) return;
+
+    state.cards = studySet.cards || [];
+    
+    document.getElementById('app-view').classList.add('hidden');
+    document.getElementById('set-view').classList.add('active');
+    
+    document.getElementById('set-title').textContent = studySet.name;
+    document.getElementById('set-description').textContent = studySet.description || '';
+    
+    switchTab('create');
+    updateStats();
+    renderLibrary();
+    checkStudyAvailability();
+}
+
+function renderStudySets() {
+    const grid = document.getElementById('study-sets-grid');
+    const empty = document.getElementById('empty-sets');
+    const searchTerm = document.getElementById('search-sets').value.toLowerCase();
+
+    let filtered = state.studySets.filter(set => {
+        return set.name.toLowerCase().includes(searchTerm) || 
+               (set.description && set.description.toLowerCase().includes(searchTerm));
+    });
+
+    if (filtered.length === 0 && state.studySets.length === 0) {
+        grid.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+    }
+
+    if (filtered.length === 0 && state.studySets.length > 0) {
+        grid.innerHTML = '<div class="empty-state"><h3>No matching study sets</h3><p>Try a different search term</p></div>';
+        empty.style.display = 'none';
+        return;
+    }
+
+    empty.style.display = 'none';
+    
+    const setsHtml = filtered.map(set => {
+        const cardCount = set.cards ? set.cards.length : 0;
+        const avgMastery = cardCount > 0 
+            ? Math.round((set.cards.reduce((sum, c) => sum + c.mastery, 0) / (cardCount * 5)) * 100)
+            : 0;
+        
+        return `
+            <div class="study-set-card" onclick="showSetView(${set.id})">
+                <div class="study-set-header">
+                    <div>
+                        <div class="study-set-title">${escapeHtml(set.name)}</div>
+                        <div class="study-set-count">${cardCount} card${cardCount !== 1 ? 's' : ''}</div>
+                    </div>
+                    <div class="study-set-actions" onclick="event.stopPropagation()">
+                        <button class="btn" onclick="editStudySet(${set.id})">edit</button>
+                        <button class="btn" onclick="deleteStudySet(${set.id})">delete</button>
+                    </div>
+                </div>
+                ${set.description ? `<div class="study-set-description">${escapeHtml(set.description)}</div>` : ''}
+                <div class="study-set-meta">
+                    <span>Mastery: ${avgMastery}%</span>
+                    <span>Last studied: ${set.lastStudied ? formatDate(set.lastStudied) : 'Never'}</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    grid.innerHTML = setsHtml;
+}
+
+function openCreateSetModal() {
+    document.getElementById('set-modal-title').textContent = 'Create study set';
+    document.getElementById('set-id').value = '';
+    document.getElementById('set-name').value = '';
+    document.getElementById('set-desc').value = '';
+    document.getElementById('set-modal').classList.add('active');
+}
+
+function editStudySet(setId) {
+    const set = state.studySets.find(s => s.id === setId);
+    if (!set) return;
+
+    document.getElementById('set-modal-title').textContent = 'Edit study set';
+    document.getElementById('set-id').value = set.id;
+    document.getElementById('set-name').value = set.name;
+    document.getElementById('set-desc').value = set.description || '';
+    document.getElementById('set-modal').classList.add('active');
+}
+
+function deleteStudySet(setId) {
+    const set = state.studySets.find(s => s.id === setId);
+    const cardCount = set && set.cards ? set.cards.length : 0;
+    const message = cardCount > 0 
+        ? `Delete "${set.name}" and all ${cardCount} flashcard${cardCount !== 1 ? 's' : ''}?`
+        : `Delete "${set.name}"?`;
+    
+    if (confirm(message)) {
+        state.studySets = state.studySets.filter(s => s.id !== setId);
+        saveToStorage();
+        renderStudySets();
+        updateGlobalStats();
+        showNotification('Study set deleted', false);
+    }
+}
+
+function handleCreateSet(e) {
+    e.preventDefault();
+    
+    const name = document.getElementById('set-name').value.trim();
+    const description = document.getElementById('set-desc').value.trim();
+    const setId = document.getElementById('set-id').value;
+
+    if (setId) {
+        const index = state.studySets.findIndex(s => s.id === parseInt(setId));
+        if (index !== -1) {
+            state.studySets[index].name = name;
+            state.studySets[index].description = description;
+        }
+    } else {
+        const newSet = {
+            id: Date.now(),
+            name,
+            description,
+            cards: [],
+            created: Date.now(),
+            lastStudied: null
+        };
+        state.studySets.push(newSet);
+    }
+
+    saveToStorage();
+    renderStudySets();
+    updateGlobalStats();
+    closeSetModal();
+}
+
+function closeSetModal() {
+    document.getElementById('set-modal').classList.remove('active');
+}
+
+function updateGlobalStats() {
+    const totalCards = state.studySets.reduce((sum, set) => sum + (set.cards ? set.cards.length : 0), 0);
+    document.getElementById('total-sets').textContent = state.studySets.length;
+    document.getElementById('total-cards-all').textContent = totalCards;
+    document.getElementById('studied-today-all').textContent = state.studiedToday;
+}
+
+function updateCurrentSet() {
+    if (!state.currentSetId) return;
+    const set = state.studySets.find(s => s.id === state.currentSetId);
+    if (set) {
+        set.cards = state.cards;
+        set.lastStudied = Date.now();
+    }
+}
+
 function switchTab(tabName) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
@@ -260,6 +442,7 @@ function handleCreate(e) {
         type: 'create',
         card: { ...card }
     });
+    updateCurrentSet();
     updateStats();
     
     e.target.reset();
@@ -293,6 +476,7 @@ function handleEdit(e) {
             newCard: { ...newCard }
         });
         
+        updateCurrentSet();
         renderLibrary();
         updateStats();
         closeModal();
@@ -311,6 +495,7 @@ function deleteCard(id) {
                 card: deletedCard
             });
             
+            updateCurrentSet();
             renderLibrary();
             updateStats();
             showNotification('Card deleted');
@@ -430,6 +615,7 @@ function markKnown() {
     }
 
     state.studiedToday++;
+    updateCurrentSet();
     saveToStorage();
     updateStats();
 
@@ -450,6 +636,7 @@ function markLearning() {
     }
 
     state.studiedToday++;
+    updateCurrentSet();
     saveToStorage();
     updateStats();
 
@@ -519,12 +706,6 @@ function renderLibrary() {
     `).join('');
 }
 
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
 function updateStats() {
     document.getElementById('total-cards').textContent = state.cards.length;
     document.getElementById('studied-today').textContent = state.studiedToday;
@@ -533,6 +714,24 @@ function updateStats() {
         ? Math.round((state.cards.reduce((sum, c) => sum + c.mastery, 0) / (state.cards.length * 5)) * 100)
         : 0;
     document.getElementById('mastery-level').textContent = `${avgMastery}%`;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function formatDate(timestamp) {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diff = now - date;
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    
+    if (days === 0) return 'Today';
+    if (days === 1) return 'Yesterday';
+    if (days < 7) return `${days} days ago`;
+    return date.toLocaleDateString();
 }
 
 init();

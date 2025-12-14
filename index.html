@@ -8,104 +8,159 @@
 </head>
 <body>
     <div class="container">
-        <header>
-            <button class="theme-toggle" id="theme-toggle" aria-label="toggle theme">☀</button>
-            <h1 class="logo">Recall</h1>
-            <p class="tagline">Learn through active repetition</p>
-            <div class="stats">
-                <div class="stat"><span>Cards</span><span id="total-cards">0</span></div>
-                <div class="stat"><span>Studied today</span><span id="studied-today">0</span></div>
-                <div class="stat"><span>Mastery</span><span id="mastery-level">0%</span></div>
-            </div>
-        </header>
+        <!-- Study Sets View (Homepage) -->
+        <div id="app-view">
+            <header>
+                <button class="theme-toggle" id="theme-toggle" aria-label="toggle theme">☀</button>
+                <h1 class="logo">Recall</h1>
+                <p class="tagline">Learn through active repetition</p>
+                <div class="stats">
+                    <div class="stat"><span>Study sets</span><span id="total-sets">0</span></div>
+                    <div class="stat"><span>Total cards</span><span id="total-cards-all">0</span></div>
+                    <div class="stat"><span>Studied today</span><span id="studied-today-all">0</span></div>
+                </div>
+            </header>
 
-        <div class="tabs">
-            <button class="tab active" data-tab="create">Create</button>
-            <button class="tab" data-tab="study">Study</button>
-            <button class="tab" data-tab="manage">Library</button>
-        </div>
-
-        <div id="create" class="content active">
-            <form id="create-form">
-                <div class="form-group">
-                    <label>Term or question</label>
-                    <textarea id="equation" placeholder="Enter your term or question" required></textarea>
-                </div>
-                <div class="form-group">
-                    <label>Definition or answer</label>
-                    <textarea id="solution" placeholder="Enter the definition or answer" required></textarea>
-                </div>
-                <div class="form-group">
-                    <label>Difficulty</label>
-                    <div class="difficulty-group">
-                        <button type="button" class="btn difficulty-btn active" data-difficulty="easy">Easy</button>
-                        <button type="button" class="btn difficulty-btn" data-difficulty="medium">Medium</button>
-                        <button type="button" class="btn difficulty-btn" data-difficulty="hard">Hard</button>
-                    </div>
-                </div>
-                <div class="btn-group">
-                    <button type="submit" class="btn btn-primary">Create flashcard</button>
-                    <button type="reset" class="btn">Clear</button>
-                </div>
-            </form>
-        </div>
-
-        <div id="study" class="content">
-            <div id="study-content">
-                <div class="study-info">
-                    <div class="card-counter" id="card-counter">Ready to begin</div>
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
-                    </div>
-                </div>
-                <div class="flashcard-viewport">
-                    <div class="flashcard-3d" id="flashcard">
-                        <div class="card-face card-front">
-                            <span class="card-label">Term/question</span>
-                            <div id="card-question">Click start to begin studying</div>
-                        </div>
-                        <div class="card-face card-back">
-                            <span class="card-label">Definition/answer</span>
-                            <div id="card-answer">The solution will appear here</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="study-controls">
-                    <button id="start-btn" class="btn btn-primary">Start session</button>
-                    <button id="shuffle-btn" class="btn">Shuffle</button>
-                    <button id="flip-btn" class="btn" style="display: none;">Flip card</button>
-                    <button id="prev-btn" class="btn" style="display: none;">Previous</button>
-                    <button id="next-btn" class="btn" style="display: none;">Next</button>
-                    <button id="know-btn" class="btn btn-primary" style="display: none;">I know this</button>
-                    <button id="learning-btn" class="btn" style="display: none;">Still learning</button>
-                </div>
-            </div>
-            <div id="empty-study" class="empty-state" style="display: none;">
-                <h3>No flashcards yet</h3>
-                <p>Create some flashcards to start studying</p>
-            </div>
-        </div>
-
-        <div id="manage" class="content">
             <div class="filter-bar">
-                <input type="text" id="search" class="search-box" placeholder="Search flashcards">
-                <select id="filter-difficulty" class="btn">
-                    <option value="all">All levels</option>
-                    <option value="easy">Easy</option>
-                    <option value="medium">Medium</option>
-                    <option value="hard">Hard</option>
-                </select>
-                <button id="undo-btn" class="btn" disabled>Undo</button>
-                <button id="redo-btn" class="btn" disabled>Redo</button>
+                <input type="text" id="search-sets" class="search-box" placeholder="Search study sets">
+                <button class="btn btn-primary" onclick="openCreateSetModal()">+ Create study set</button>
             </div>
-            <div id="flashcards-grid" class="flashcard-grid"></div>
-            <div id="empty-library" class="empty-state" style="display: none;">
-                <h3>Your library is empty</h3>
-                <p>Start creating flashcards to build your collection</p>
+
+            <div id="study-sets-grid" class="study-sets-grid"></div>
+            <div id="empty-sets" class="empty-state" style="display: none;">
+                <h3>No study sets yet</h3>
+                <p>Create your first study set to get started</p>
+            </div>
+        </div>
+
+        <!-- Individual Study Set View -->
+        <div id="set-view">
+            <header>
+                <button class="theme-toggle" id="theme-toggle-set" aria-label="toggle theme">☀</button>
+                <a class="back-nav" id="back-to-sets">← Back to study sets</a>
+                <h1 class="logo" id="set-title">Study Set</h1>
+                <p class="tagline" id="set-description"></p>
+                <div class="stats">
+                    <div class="stat"><span>Cards</span><span id="total-cards">0</span></div>
+                    <div class="stat"><span>Studied today</span><span id="studied-today">0</span></div>
+                    <div class="stat"><span>Mastery</span><span id="mastery-level">0%</span></div>
+                </div>
+            </header>
+
+            <div class="tabs">
+                <button class="tab active" data-tab="create">Create</button>
+                <button class="tab" data-tab="study">Study</button>
+                <button class="tab" data-tab="manage">Library</button>
+            </div>
+
+            <div id="create" class="content active">
+                <form id="create-form">
+                    <div class="form-group">
+                        <label>Term or question</label>
+                        <textarea id="equation" placeholder="Enter your term or question" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Definition or answer</label>
+                        <textarea id="solution" placeholder="Enter the definition or answer" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Difficulty</label>
+                        <div class="difficulty-group">
+                            <button type="button" class="btn difficulty-btn active" data-difficulty="easy">Easy</button>
+                            <button type="button" class="btn difficulty-btn" data-difficulty="medium">Medium</button>
+                            <button type="button" class="btn difficulty-btn" data-difficulty="hard">Hard</button>
+                        </div>
+                    </div>
+                    <div class="btn-group">
+                        <button type="submit" class="btn btn-primary">Create flashcard</button>
+                        <button type="reset" class="btn">Clear</button>
+                    </div>
+                </form>
+            </div>
+
+            <div id="study" class="content">
+                <div id="study-content">
+                    <div class="study-info">
+                        <div class="card-counter" id="card-counter">Ready to begin</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="flashcard-viewport">
+                        <div class="flashcard-3d" id="flashcard">
+                            <div class="card-face card-front">
+                                <span class="card-label">Term/question</span>
+                                <div id="card-question">Click start to begin studying</div>
+                            </div>
+                            <div class="card-face card-back">
+                                <span class="card-label">Definition/answer</span>
+                                <div id="card-answer">The solution will appear here</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="study-controls">
+                        <button id="start-btn" class="btn btn-primary">Start session</button>
+                        <button id="shuffle-btn" class="btn">Shuffle</button>
+                        <button id="flip-btn" class="btn" style="display: none;">Flip card</button>
+                        <button id="prev-btn" class="btn" style="display: none;">Previous</button>
+                        <button id="next-btn" class="btn" style="display: none;">Next</button>
+                        <button id="know-btn" class="btn btn-primary" style="display: none;">I know this</button>
+                        <button id="learning-btn" class="btn" style="display: none;">Still learning</button>
+                    </div>
+                </div>
+                <div id="empty-study" class="empty-state" style="display: none;">
+                    <h3>No flashcards yet</h3>
+                    <p>Create some flashcards to start studying</p>
+                </div>
+            </div>
+
+            <div id="manage" class="content">
+                <div class="filter-bar">
+                    <input type="text" id="search" class="search-box" placeholder="Search flashcards">
+                    <select id="filter-difficulty" class="btn">
+                        <option value="all">All levels</option>
+                        <option value="easy">Easy</option>
+                        <option value="medium">Medium</option>
+                        <option value="hard">Hard</option>
+                    </select>
+                    <button id="undo-btn" class="btn" disabled>Undo</button>
+                    <button id="redo-btn" class="btn" disabled>Redo</button>
+                </div>
+                <div id="flashcards-grid" class="flashcard-grid"></div>
+                <div id="empty-library" class="empty-state" style="display: none;">
+                    <h3>Your library is empty</h3>
+                    <p>Start creating flashcards to build your collection</p>
+                </div>
             </div>
         </div>
     </div>
 
+    <!-- Create/Edit Study Set Modal -->
+    <div id="set-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="set-modal-title">Create study set</h2>
+                <button class="modal-close" id="close-set-modal">&times;</button>
+            </div>
+            <form id="set-form">
+                <input type="hidden" id="set-id">
+                <div class="form-group">
+                    <label>Study set name</label>
+                    <input type="text" id="set-name" placeholder="e.g., Spanish Vocabulary" required>
+                </div>
+                <div class="form-group">
+                    <label>Description (optional)</label>
+                    <textarea id="set-desc" placeholder="What is this study set about?" style="min-height: 80px;"></textarea>
+                </div>
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-primary">Save study set</button>
+                    <button type="button" id="cancel-set" class="btn">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Flashcard Modal -->
     <div id="edit-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
